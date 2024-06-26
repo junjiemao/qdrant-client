@@ -615,6 +615,72 @@ class QdrantFastembedMixin(QdrantBase):
         return self._scored_points_to_query_responses(
             reciprocal_rank_fusion([dense_request_response, sparse_request_response], limit=limit)
         )
+    
+    def query_by_vector(
+        self,
+        collection_name: str,
+        sparse_vector: Optional[models.SparseVector] = None,
+        dense_vector: Optional[models.Vector] = None,
+        sparse_index_name:str=None,
+        dense_index_name:str=None,
+        query_filter: Optional[models.Filter] = None,
+        limit: int = 10,
+        **kwargs: Any,
+    ) -> List[QueryResponse]:
+        """
+        Search for documents in a collection.
+        This method automatically embeds the query text using the specified embedding model.
+        If you want to use your own query vector, use `search` method instead.
+
+        Args:
+            collection_name: Collection to search in
+            query_text:
+                Text to search for. This text will be embedded using the specified embedding model.
+                And then used as a query vector.
+            query_filter:
+                - Exclude vectors which doesn't fit given conditions.
+                - If `None` - search among all vectors
+            limit: How many results return
+            **kwargs: Additional search parameters. See `qdrant_client.models.SearchRequest` for details.
+
+        Returns:
+            List[types.ScoredPoint]: List of scored points.
+
+        """
+        sparse_query_vector = models.SparseVector(
+            indices=sparse_vector.indices.tolist(),
+            values=sparse_vector.values.tolist(),
+        )
+
+        dense_request = models.SearchRequest(
+            vector=models.NamedVector(
+                name=dense_index_name,
+                vector=dense_vector,
+            ),
+            filter=query_filter,
+            limit=limit,
+            with_payload=True,
+            **kwargs,
+        )
+        sparse_request = models.SearchRequest(
+            vector=models.NamedSparseVector(
+                name=sparse_index_name,
+                vector=sparse_query_vector,
+            ),
+            filter=query_filter,
+            limit=limit,
+            with_payload=True,
+            **kwargs,
+        )
+
+        dense_request_response, sparse_request_response = self.search_batch(
+            collection_name=collection_name, requests=[dense_request, sparse_request]
+        )
+        return self._scored_points_to_query_responses(
+            reciprocal_rank_fusion([dense_request_response, sparse_request_response], limit=limit)
+        )
+    
+
 
     def query_batch(
         self,
