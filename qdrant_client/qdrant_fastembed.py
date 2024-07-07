@@ -648,8 +648,8 @@ class QdrantFastembedMixin(QdrantBase):
 
         """
         sparse_query_vector = models.SparseVector(
-            indices=sparse_vector.indices.tolist(),
-            values=sparse_vector.values.tolist(),
+            indices=sparse_vector["indices"],#.tolist(),
+            values=sparse_vector["values"]#.tolist(),
         )
 
         dense_request = models.SearchRequest(
